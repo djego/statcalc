@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { CalculatorLayout } from "@/components/calculator-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Target, BarChart3, FlaskConical, Calendar, TrendingUp, GitBranch, ArrowRight } from "lucide-react"
+import { Target, BarChart3, FlaskConical, Calendar, TrendingUp, GitBranch, ArrowRight, Github, Bug, MessageCircle } from "lucide-react"
 
 const calculators = [
   {
@@ -82,6 +82,54 @@ export default function HomePage() {
               substituted, along with clear interpretations of results. This helps you understand not just the answer,
               but how it was calculated and what it means.
             </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-blue-500/50 bg-blue-500/5">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <Github className="w-6 h-6 text-blue-500" />
+              </div>
+              <div className="flex-1 space-y-3">
+                <div>
+                  <h3 className="font-semibold mb-1">Open Source & Community</h3>
+                  <p className="text-sm text-muted-foreground">
+                    StatCalc is open source! Found a bug? Have a feature request? 
+                    We welcome contributions and feedback from the community.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href="https://github.com/djego/statcalc"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-background border border-border hover:bg-accent transition-colors text-sm"
+                  >
+                    <Github className="w-4 h-4" />
+                    View Source Code
+                  </a>
+                  <a
+                    href="https://github.com/djego/statcalc/issues/new"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-background border border-border hover:bg-accent transition-colors text-sm"
+                  >
+                    <Bug className="w-4 h-4" />
+                    Report Issue
+                  </a>
+                  <a
+                    href="https://github.com/djego/statcalc/discussions"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-background border border-border hover:bg-accent transition-colors text-sm"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Discussions
+                  </a>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

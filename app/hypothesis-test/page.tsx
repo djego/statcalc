@@ -67,7 +67,18 @@ interface TwoSampleMeanResults {
   equalVariance: boolean
 }
 
-type Results = OneSampleMeanResults | OneSampleProportionResults | TwoSampleMeanResults
+interface ComparisonResults {
+  manualPValue: number
+  calculatedPValue: number
+  difference: number
+  percentDifference: number
+  sameConclusion: boolean
+  manualRejectNull: boolean
+}
+
+type Results = (OneSampleMeanResults | OneSampleProportionResults | TwoSampleMeanResults) & {
+  comparison?: ComparisonResults
+}
 
 export default function HypothesisTestCalculator() {
   const [testType, setTestType] = useState<TestType>("one-sample-mean")
@@ -97,6 +108,7 @@ export default function HypothesisTestCalculator() {
 
   const [results, setResults] = useState<Results | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [manualPValue, setManualPValue] = useState("")
 
   const adjustPValueForAlternative = (twoTailedP: number, statistic: number, alt: AlternativeHypothesis): number => {
     if (alt === "two-tailed") return twoTailedP
@@ -105,6 +117,23 @@ export default function HypothesisTestCalculator() {
     }
     // right-tailed
     return statistic > 0 ? twoTailedP / 2 : 1 - twoTailedP / 2
+  }
+
+  const calculateComparison = (pValue: number, alpha: number): ComparisonResults | undefined => {
+    if (manualPValue && !isNaN(Number.parseFloat(manualPValue))) {
+      const manualP = Number.parseFloat(manualPValue)
+      if (manualP >= 0 && manualP <= 1) {
+        return {
+          manualPValue: manualP,
+          calculatedPValue: pValue,
+          difference: Math.abs(manualP - pValue),
+          percentDifference: pValue !== 0 ? Math.abs((manualP - pValue) / pValue) * 100 : 0,
+          sameConclusion: (manualP < alpha) === (pValue < alpha),
+          manualRejectNull: manualP < alpha,
+        }
+      }
+    }
+    return undefined
   }
 
   const handleCalculate = () => {
@@ -175,6 +204,7 @@ export default function HypothesisTestCalculator() {
         alpha: a,
         alternative,
         rejectNull: pValue < a,
+        comparison: calculateComparison(pValue, a),
       })
     } else if (testType === "one-sample-proportion") {
       const x = Number.parseInt(successes)
@@ -215,6 +245,7 @@ export default function HypothesisTestCalculator() {
         alpha: a,
         alternative,
         rejectNull: pValue < a,
+        comparison: calculateComparison(pValue, a),
       })
     } else {
       // Two-sample mean test
@@ -265,6 +296,7 @@ export default function HypothesisTestCalculator() {
         alternative,
         rejectNull: pValue < a,
         equalVariance: equalVariance === "yes",
+        comparison: calculateComparison(pValue, a),
       })
     }
   }
@@ -340,6 +372,23 @@ export default function HypothesisTestCalculator() {
                     <SelectItem value="0.10">0.10 (10%)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="manualPValue">Manual P-Value (Optional)</Label>
+                <Input
+                  id="manualPValue"
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  max="1"
+                  value={manualPValue}
+                  onChange={(e) => setManualPValue(e.target.value)}
+                  placeholder="e.g., 0.0234"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional: Enter an externally calculated p-value to verify results
+                </p>
               </div>
 
               {testType === "one-sample-mean" && (
@@ -688,6 +737,87 @@ export default function HypothesisTestCalculator() {
                   )}
                 </CardContent>
               </Card>
+
+              {results.comparison && (
+                <Card className="border-blue-500/50">
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-blue-500" />
+                      P-Value Verification
+                    </CardTitle>
+                    <CardDescription>
+                      Comparison between calculated and manually provided p-values
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <ResultCard
+                        title="Calculated P-Value"
+                        value={
+                          results.comparison.calculatedPValue < 0.0001
+                            ? "< 0.0001"
+                            : formatNumber(results.comparison.calculatedPValue, 4)
+                        }
+                        description="By this application"
+                      />
+                      <ResultCard
+                        title="Manual P-Value"
+                        value={formatNumber(results.comparison.manualPValue, 4)}
+                        description="User provided"
+                      />
+                    </div>
+
+                    <div className="p-4 bg-muted rounded-lg space-y-2">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Absolute Difference</p>
+                          <p className="font-mono font-semibold">{formatNumber(results.comparison.difference, 5)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Relative Difference</p>
+                          <p className="font-mono font-semibold">
+                            {formatNumber(results.comparison.percentDifference, 2)}%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Alert
+                      variant={results.comparison.sameConclusion ? "default" : "destructive"}
+                      className={results.comparison.sameConclusion ? "border-green-500/50 bg-green-500/5" : ""}
+                    >
+                      {results.comparison.sameConclusion ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+                      <AlertTitle>
+                        {results.comparison.sameConclusion ? "✓ Conclusions Match" : "⚠ Different Conclusions"}
+                      </AlertTitle>
+                      <AlertDescription>
+                        {results.comparison.sameConclusion ? (
+                          <>
+                            Both p-values lead to the same decision:{" "}
+                            {results.rejectNull ? "Reject" : "Fail to reject"} H₀ at α = {results.alpha}.
+                            {results.comparison.percentDifference < 1
+                              ? " The values are nearly identical, confirming the calculation."
+                              : results.comparison.percentDifference < 5
+                                ? " The small difference is within acceptable numerical precision."
+                                : " The difference may be due to rounding or different calculation methods."}
+                          </>
+                        ) : (
+                          <>
+                            The p-values lead to different conclusions. The calculated p-value suggests to{" "}
+                            {results.rejectNull ? "reject" : "fail to reject"} H₀, while the manual p-value suggests to{" "}
+                            {results.comparison.manualRejectNull ? "reject" : "fail to reject"} H₀. Please verify your
+                            calculations and ensure correct test parameters.
+                          </>
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
         </div>
@@ -725,6 +855,16 @@ export default function HypothesisTestCalculator() {
                   <strong>Right-tailed:</strong> Tests if the parameter is greater than the hypothesized value
                 </li>
               </ul>
+            </div>
+
+            <div>
+              <h4 className="font-medium text-foreground mb-1">P-Value Verification</h4>
+              <p>
+                The optional verification feature allows you to compare a manually calculated or externally sourced
+                p-value with this calculator&apos;s result. Small differences ({"<"}1%) are normal due to numerical
+                approximations and rounding. Larger discrepancies may indicate different calculation methods, rounding
+                errors, or incorrect input parameters.
+              </p>
             </div>
           </div>
         </ExplanationSection>
